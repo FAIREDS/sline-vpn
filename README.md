@@ -131,16 +131,16 @@ Browser → /api/* → web/routers/ → core/services/ → core/dal/ → Postgre
 **1. Создайте директорию проекта и скачайте production-файлы:**
 
 ```bash
-mkdir -p remnawave-tg-shop && cd remnawave-tg-shop
+mkdir -p sline-vpn && cd sline-vpn
 
 curl -fsSLo docker-compose.yml \
-  https://raw.githubusercontent.com/VAQYBIN/remnawave-tg-shop/main/docker-compose.prod.yml
+  https://github.com/FAIREDS/sline-vpn/main/docker-compose.prod.yml
 
 curl -fsSLo .env \
-  https://raw.githubusercontent.com/VAQYBIN/remnawave-tg-shop/main/.env.example
+  https://github.com/FAIREDS/sline-vpn/main/.env.example
 
-curl -fsSL https://github.com/VAQYBIN/remnawave-tg-shop/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=1 remnawave-tg-shop-main/locales
+curl -fsSL https://github.com/FAIREDS/sline-vpn/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=1 sline-vpn/locales
 ```
 
 **2. Заполните файл `.env`:**
