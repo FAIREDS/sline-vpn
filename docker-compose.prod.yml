@@ -1,0 +1,111 @@
+services:
+  remnawave-tg-shop-db:
+    image: postgres:17
+    container_name: remnawave-tg-shop-db
+    hostname: remnawave-tg-shop-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - remnawave-tg-shop-db-data:/var/lib/postgresql/data
+    networks:
+      - remnawave-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  remnawave-tg-shop-redis:
+    image: redis:7-alpine
+    container_name: remnawave-tg-shop-redis
+    hostname: remnawave-tg-shop-redis
+    command: redis-server --save 60 1
+    volumes:
+      - remnawave-tg-shop-redis-data:/data
+    networks:
+      - remnawave-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  remnawave-tg-shop:
+    image: ghcr.io/vaqybin/remnawave-tg-shop:latest
+    container_name: remnawave-tg-shop
+    hostname: remnawave-tg-shop
+    env_file:
+      - .env
+    networks:
+      - remnawave-network
+    volumes:
+      - ./locales:/app/locales
+    restart: unless-stopped
+    depends_on:
+      remnawave-tg-shop-db:
+        condition: service_healthy
+      remnawave-tg-shop-redis:
+        condition: service_healthy
+
+  remnawave-tg-shop-web-api:
+    image: ghcr.io/vaqybin/remnawave-tg-shop-web-api:latest
+    container_name: remnawave-tg-shop-web-api
+    hostname: remnawave-tg-shop-web-api
+    env_file:
+      - .env
+    networks:
+      - remnawave-network
+    volumes:
+      - remnawave-tg-shop-web-static:/app/web/static
+    restart: unless-stopped
+    depends_on:
+      remnawave-tg-shop-db:
+        condition: service_healthy
+      remnawave-tg-shop-redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/api/health', timeout=5).read()\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  remnawave-tg-shop-web-frontend:
+    image: ghcr.io/vaqybin/remnawave-tg-shop-web-frontend:latest
+    environment:
+      API_URL: ${WEB_API_URL}/api
+    container_name: remnawave-tg-shop-web-frontend
+    hostname: remnawave-tg-shop-web-frontend
+    networks:
+      - remnawave-network
+    restart: unless-stopped
+    depends_on:
+      remnawave-tg-shop-web-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  remnawave-network:
+    name: remnawave-network
+    driver: bridge
+    external: true
+
+volumes:
+  remnawave-tg-shop-db-data:
+    name: remnawave-tg-shop-db-data
+  remnawave-tg-shop-redis-data:
+    name: remnawave-tg-shop-redis-data
+  remnawave-tg-shop-web-static:
+    name: remnawave-tg-shop-web-static

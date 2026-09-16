@@ -1,0 +1,33 @@
+# Игнорировать базу данных
+bot_database.sqlite3
+
+# Игнорировать файлы окружения
+.env
+
+# Игнорировать кэш Python
+__pycache__/
+
+# Игнорировать настройки IDE (если используешь, например, PyCharm или VSCode)
+.idea/
+.vscode/
+
+# Игнорировать Docker артефакты (если вдруг)
+*.log
+*.pid
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+locales/ru_backup.json
+locales/en_backup.json
+db/models_old.py
+.serena/
+AGENTS.md
+CLAUDE.md
+.claude/
+/nginx
+.codegraph
+
+# Планировочные артефакты внешних проектов (спеки/планы RaccoonitoVPN и т.п.)
+docs/superpowers/
+.superpowers/

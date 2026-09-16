@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>VPN Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Telegram Mini App SDK (enables auto-auth via initData), vendored into
+         public/vendor/ instead of loading from telegram.org: that domain is
+         often unreachable from the WebView (a proxy set up inside the Telegram
+         client does not cover it), and a blocking external <script> would stall
+         the whole page until the request times out.
+         defer keeps parsing unblocked and still runs before /src/main.tsx,
+         since deferred scripts execute in document order.
+         Update: re-download the file and bump ?v= (nginx caches *.js for 1y). -->
+    <script defer src="/vendor/telegram-web-app.js?v=62"></script>
+    <script src="/env-config.js"></script>
+    <script>
+      // Anti-flash: apply the stored colour-scheme preference before React mounts.
+      // (Palette colours still load with branding; this just avoids a light/dark flash.)
+      try {
+        var pref = localStorage.getItem('color-scheme-pref');
+        // null (first visit) follows the OS, matching BrandingProvider's initial
+        // 'system' state, so there is no flash before React mounts.
+        var dark = pref === 'dark' ||
+          ((pref === 'system' || pref === null) &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
