@@ -44,6 +44,8 @@ class BrandingResponse(BaseModel):
     theme: Theme
     default_color_scheme: str = DEFAULT_COLOR_SCHEME
     custom_css: Optional[str]
+    webapp_start_message: Optional[str] = None
+    webapp_start_photo_url: Optional[str] = None
     privacy_policy_url: Optional[str] = None
     terms_of_service_url: Optional[str] = None
     personal_data_url: Optional[str] = None
@@ -64,6 +66,8 @@ class BrandingUpdateRequest(BaseModel):
     theme: Optional[Theme] = None
     default_color_scheme: Optional[str] = None
     custom_css: Optional[str] = None
+    webapp_start_message: Optional[str] = None
+    webapp_start_photo_url: Optional[str] = None
     privacy_policy_url: Optional[str] = None
     terms_of_service_url: Optional[str] = None
     personal_data_url: Optional[str] = None
@@ -87,6 +91,8 @@ class BrandingUpdateRequest(BaseModel):
         "contact_support_tg_username",
         "contact_support_email",
         "contact_support_phone",
+        "webapp_start_message",
+        "webapp_start_photo_url",
         mode="before",
     )
     @classmethod
@@ -94,6 +100,13 @@ class BrandingUpdateRequest(BaseModel):
         """Empty input means "clear this field", not "leave it as is"."""
         if isinstance(v, str):
             return v.strip() or None
+        return v
+
+    @field_validator("webapp_start_message")
+    @classmethod
+    def _valid_start_message(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 1024:
+            raise ValueError("webapp_start_message must be at most 1024 characters")
         return v
 
     @field_validator("contact_support_tg_username")

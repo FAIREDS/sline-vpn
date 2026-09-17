@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Upload, Save, Trash2 } from 'lucide-react'
-import { getAdminBranding, patchBranding, uploadLogo, uploadFavicon, deleteLogo, deleteFavicon } from '@/api/admin/branding'
+import { getAdminBranding, patchBranding, uploadLogo, uploadFavicon, deleteLogo, deleteFavicon, uploadWebappStartPhoto, deleteWebappStartPhoto } from '@/api/admin/branding'
 import { useToastContext } from '@/lib/toast-context'
 import { resolveLogoUrl } from '@/hooks/useBranding'
 import { useTranslation } from 'react-i18next'
@@ -40,6 +40,7 @@ export function BrandingPage() {
     heading_font_family: '',
     default_color_scheme: 'light' as ColorScheme,
     custom_css: '',
+    webapp_start_message: '',
     privacy_policy_url: '',
     terms_of_service_url: '',
     personal_data_url: '',
@@ -59,6 +60,7 @@ export function BrandingPage() {
       heading_font_family: data.heading_font_family ?? '',
       default_color_scheme: (data.default_color_scheme as ColorScheme) || 'light',
       custom_css: data.custom_css ?? '',
+      webapp_start_message: data.webapp_start_message ?? '',
       privacy_policy_url: data.privacy_policy_url ?? '',
       terms_of_service_url: data.terms_of_service_url ?? '',
       personal_data_url: data.personal_data_url ?? '',
@@ -109,6 +111,7 @@ export function BrandingPage() {
 
   const fileRef = useRef<HTMLInputElement>(null)
   const faviconRef = useRef<HTMLInputElement>(null)
+  const webappStartPhotoRef = useRef<HTMLInputElement>(null)
 
   const faviconMutation = useMutation({
     mutationFn: uploadFavicon,
@@ -140,6 +143,24 @@ export function BrandingPage() {
     onError: (err: Error) => showToast(err.message || t('admin_branding_favicon_error'), 'error'),
   })
 
+  const webappStartPhotoMutation = useMutation({
+    mutationFn: uploadWebappStartPhoto,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'branding'] })
+      showToast(t('admin_branding_webapp_start_photo_uploaded'), 'success')
+    },
+    onError: (err: Error) => showToast(err.message || t('admin_branding_logo_error'), 'error'),
+  })
+
+  const deleteWebappStartPhotoMutation = useMutation({
+    mutationFn: deleteWebappStartPhoto,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'branding'] })
+      showToast(t('admin_branding_webapp_start_photo_removed'), 'success')
+    },
+    onError: (err: Error) => showToast(err.message || t('admin_branding_logo_error'), 'error'),
+  })
+
   // Load a saved/built-in preset into the form (theme + fonts). Persisted only
   // when the admin presses the main Save button.
   const handleApplyPreset = (theme: Theme, fontFamily: string, headingFontFamily: string) =>
@@ -158,6 +179,7 @@ export function BrandingPage() {
       heading_font_family: form.heading_font_family || undefined,
       default_color_scheme: form.default_color_scheme,
       custom_css: form.custom_css || undefined,
+      webapp_start_message: form.webapp_start_message || null,
       // null (не undefined) — иначе очистить сохранённую ссылку/контакт нельзя
       privacy_policy_url: form.privacy_policy_url || null,
       terms_of_service_url: form.terms_of_service_url || null,
@@ -285,6 +307,45 @@ export function BrandingPage() {
               className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) faviconMutation.mutate(f) }}
             />
+          </Card>
+
+          {/* Web App start message */}
+          <Card className="p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-bold text-[hsl(var(--foreground))]">{t('admin_branding_webapp_start_title')}</h2>
+              <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">{t('admin_branding_webapp_start_hint')}</p>
+            </div>
+            <textarea
+              value={form.webapp_start_message}
+              onChange={e => setForm(f => ({ ...f, webapp_start_message: e.target.value }))}
+              rows={4}
+              maxLength={1024}
+              className="w-full px-3 py-2 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-sm text-[hsl(var(--foreground))] resize-y transition-[border-color,box-shadow] duration-150 focus:border-[hsl(var(--primary))] focus:outline-none focus:[box-shadow:var(--ring-primary)]"
+              placeholder={t('admin_branding_webapp_start_placeholder')}
+            />
+            <p className="text-xs text-[hsl(var(--muted-foreground))] text-right">{form.webapp_start_message.length}/1024</p>
+            <div className="border-t border-[hsl(var(--border))] pt-4 flex items-center gap-4">
+              {resolveLogoUrl(data?.webapp_start_photo_url) ? (
+                <img src={resolveLogoUrl(data?.webapp_start_photo_url)!} alt="Web App start" className="w-20 h-14 object-cover rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]" />
+              ) : (
+                <div className="w-20 h-14 rounded-lg border-2 border-dashed border-[hsl(var(--border))] flex items-center justify-center text-[hsl(var(--muted-foreground))]"><Upload size={20} /></div>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => webappStartPhotoRef.current?.click()} isLoading={webappStartPhotoMutation.isPending}>
+                    {webappStartPhotoMutation.isPending ? t('admin_branding_uploading') : t('admin_branding_webapp_start_photo_upload')}
+                  </Button>
+                  {resolveLogoUrl(data?.webapp_start_photo_url) && (
+                    <Button type="button" variant="outline" onClick={() => deleteWebappStartPhotoMutation.mutate()} isLoading={deleteWebappStartPhotoMutation.isPending}>
+                      <Trash2 size={16} />
+                      {t('admin_branding_remove')}
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">{t('admin_branding_webapp_start_photo_hint')}</p>
+              </div>
+            </div>
+            <input ref={webappStartPhotoRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) webappStartPhotoMutation.mutate(f) }} />
           </Card>
 
           {/* Brand name + fonts + default scheme */}

@@ -77,7 +77,14 @@ async def send_main_menu(target_event: Union[types.Message,
     site_settings = await get_site_settings(session)
     bot_ui_mode = site_settings.bot_ui_mode
 
-    text = _(key="main_menu_greeting", user_name=user_full_name)
+    default_text = _(key="main_menu_greeting", user_name=user_full_name)
+    start_template = site_settings.webapp_start_message
+    # Admin copy is plain text. Escape it before inserting the escaped name,
+    # preventing custom greetings from injecting Telegram HTML.
+    text = (
+        hd.quote(start_template).replace("{user_name}", user_full_name)
+        if site_settings.bot_ui_mode == "webapp" and start_template else default_text
+    )
     reply_markup = get_main_menu_inline_keyboard(
         current_lang, i18n, settings, show_trial_button_in_menu,
         bot_ui_mode=bot_ui_mode, web_app_url=settings.WEB_FRONTEND_URL)
@@ -101,6 +108,12 @@ async def send_main_menu(target_event: Union[types.Message,
     try:
         if is_edit:
             await target_message_obj.edit_text(text, reply_markup=reply_markup)
+        elif site_settings.bot_ui_mode == "webapp" and site_settings.webapp_start_photo_url:
+            await target_message_obj.answer_photo(
+                photo=site_settings.webapp_start_photo_url,
+                caption=text,
+                reply_markup=reply_markup,
+            )
         else:
             await target_message_obj.answer(text, reply_markup=reply_markup)
 

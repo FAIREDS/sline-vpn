@@ -28,6 +28,7 @@ router = APIRouter()
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static")
 ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/svg+xml", "image/webp"}
+ALLOWED_WEBAPP_START_PHOTO_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2 MB
 
 
@@ -48,6 +49,8 @@ def build_branding_response(settings: SiteSettings) -> BrandingResponse:
         theme=resolve_theme(settings),
         default_color_scheme=settings.default_color_scheme or "light",
         custom_css=settings.custom_css,
+        webapp_start_message=settings.webapp_start_message,
+        webapp_start_photo_url=settings.webapp_start_photo_url,
         privacy_policy_url=settings.privacy_policy_url,
         terms_of_service_url=settings.terms_of_service_url,
         personal_data_url=settings.personal_data_url,
@@ -66,6 +69,8 @@ CLEARABLE_FIELDS = frozenset({
     "favicon_url",
     "heading_font_family",
     "custom_css",
+    "webapp_start_message",
+    "webapp_start_photo_url",
     "privacy_policy_url",
     "terms_of_service_url",
     "personal_data_url",
@@ -294,6 +299,36 @@ async def upload_logo(
     return build_branding_response(site_settings)
 
 
+@router.post("/branding/webapp-start-photo", response_model=BrandingResponse, dependencies=[Depends(admin_action_limit)])
+async def upload_webapp_start_photo(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    admin: Account = Depends(get_current_admin),
+    settings: Settings = Depends(get_settings_dep),
+):
+    if file.content_type not in ALLOWED_WEBAPP_START_PHOTO_TYPES:
+        raise HTTPException(status_code=400, detail="Недопустимый тип файла")
+
+    content = await file.read()
+    if len(content) > MAX_LOGO_SIZE:
+        raise HTTPException(status_code=400, detail="Файл слишком большой (макс. 2 МБ)")
+
+    os.makedirs(STATIC_DIR, exist_ok=True)
+    ext = os.path.splitext(file.filename or "webapp_start.png")[1] or ".png"
+    filename = f"webapp_start_{uuid.uuid4().hex}{ext}"
+    with open(os.path.join(STATIC_DIR, filename), "wb") as destination:
+        destination.write(content)
+
+    image_url = f"{settings.WEB_API_URL.rstrip('/')}/static/{filename}"
+    site_settings = await update_site_settings(db, webapp_start_photo_url=image_url)
+    await add_admin_audit_log(
+        db, admin, "admin_branding_webapp_start_photo_upload",
+        details={"filename": filename, "content_type": file.content_type, "size": len(content)},
+    )
+    await db.commit()
+    return build_branding_response(site_settings)
+
+
 @router.delete("/branding/logo", response_model=BrandingResponse, dependencies=[Depends(admin_action_limit)])
 async def delete_logo(
     db: AsyncSession = Depends(get_db),
@@ -303,6 +338,19 @@ async def delete_logo(
     _delete_static_file(settings.logo_url)
     site_settings = await update_site_settings(db, logo_url=None)
     await add_admin_audit_log(db, admin, "admin_branding_logo_delete")
+    await db.commit()
+    return build_branding_response(site_settings)
+
+
+@router.delete("/branding/webapp-start-photo", response_model=BrandingResponse, dependencies=[Depends(admin_action_limit)])
+async def delete_webapp_start_photo(
+    db: AsyncSession = Depends(get_db),
+    admin: Account = Depends(get_current_admin),
+):
+    settings = await get_site_settings(db)
+    _delete_static_file(settings.webapp_start_photo_url)
+    site_settings = await update_site_settings(db, webapp_start_photo_url=None)
+    await add_admin_audit_log(db, admin, "admin_branding_webapp_start_photo_delete")
     await db.commit()
     return build_branding_response(site_settings)
 

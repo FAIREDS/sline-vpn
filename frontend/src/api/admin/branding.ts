@@ -16,6 +16,8 @@ export interface BrandingResponse {
   theme: Theme
   default_color_scheme: string
   custom_css: string | null
+  webapp_start_message: string | null
+  webapp_start_photo_url: string | null
   privacy_policy_url: string | null
   terms_of_service_url: string | null
   personal_data_url: string | null
@@ -41,6 +43,8 @@ export interface BrandingUpdateRequest {
   theme?: Theme
   default_color_scheme?: string
   custom_css?: string
+  webapp_start_message?: string | null
+  webapp_start_photo_url?: string | null
   // null = очистить поле (бэкенд различает «не прислано» и «прислано пустым»)
   privacy_policy_url?: string | null
   terms_of_service_url?: string | null
@@ -146,6 +150,26 @@ export function deleteLogo(): Promise<BrandingResponse> {
 
 export function deleteFavicon(): Promise<BrandingResponse> {
   return apiRequest<BrandingResponse>('/admin/branding/favicon', { method: 'DELETE' })
+}
+
+export async function uploadWebappStartPhoto(file: File): Promise<BrandingResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  const resp = await fetch(`${API_BASE}/admin/branding/webapp-start-photo`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken()}` },
+    credentials: 'include',
+    body: form,
+  })
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: 'Upload failed' }))
+    throw new Error(body.detail ?? 'Upload failed')
+  }
+  return resp.json()
+}
+
+export function deleteWebappStartPhoto(): Promise<BrandingResponse> {
+  return apiRequest<BrandingResponse>('/admin/branding/webapp-start-photo', { method: 'DELETE' })
 }
 
 // ── Saved presets ────────────────────────────────────────────────────────────

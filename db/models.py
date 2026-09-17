@@ -653,6 +653,9 @@ class SiteSettings(Base):
     # Bot UX mode: "inline" — classic inline-button purchase workflow;
     # "webapp" — bot shows only a "Personal cabinet" Web App button (Mini App).
     bot_ui_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="inline", server_default="inline")
+    # ``{user_name}`` in this text is replaced with the Telegram display name.
+    webapp_start_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    webapp_start_photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     privacy_policy_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     terms_of_service_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     personal_data_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
