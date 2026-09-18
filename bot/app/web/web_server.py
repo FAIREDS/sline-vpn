@@ -88,10 +88,11 @@ async def build_and_start_web_app(
         app.router.add_post(sp_path, severpay_webhook_route)
         logging.info(f"SeverPay webhook route configured at: [POST] {sp_path}")
 
-    # LavaPay webhook — регистрируем только при полностью настроенном провайдере
-    # (включая LAVAPAY_WEBHOOK_SECRET, иначе подпись проверить нечем)
+    # Route stays registered while the provider is disabled, so enabling it in
+    # the admin panel does not require a process restart. The handler itself is
+    # fail-closed and returns 503 until credentials are complete.
     lavapay_service = app.get("lavapay_service")
-    if lavapay_service is not None and lavapay_service.configured:
+    if lavapay_service is not None:
         app.router.add_post("/webhook/lavapay", lavapay_webhook_route)
         logging.info("LavaPay webhook route configured at: [POST] /webhook/lavapay")
 

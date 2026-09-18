@@ -20,42 +20,36 @@ class YooKassaService:
                  settings_obj: Optional[Settings] = None):
 
         self.settings = settings_obj
-
-        if self.settings and not self.settings.YOOKASSA_ENABLED:
-            logging.warning("YooKassa is disabled via YOOKASSA_ENABLED flag. Payment functionality will be DISABLED.")
-            self.configured = False
-        elif not shop_id or not secret_key:
-            logging.warning(
-                "YooKassa SHOP_ID or SECRET_KEY not configured in settings. "
-                "Payment functionality will be DISABLED.")
-            self.configured = False
-        else:
-            try:
-                Configuration.configure(shop_id, secret_key)
-                self.configured = True
-                logging.info(
-                    f"YooKassa SDK configured for shop_id: {shop_id[:5]}...")
-            except Exception as e:
-                logging.error(f"Failed to configure YooKassa SDK: {e}",
-                              exc_info=True)
-                self.configured = False
-
-        if configured_return_url:
-            self.return_url = configured_return_url
-        elif bot_username_for_default_return:
-            self.return_url = f"https://t.me/{bot_username_for_default_return}"
-            logging.info(
-                f"YOOKASSA_RETURN_URL not set, using dynamic default based on bot username: {self.return_url}"
-            )
-        else:
-            self.return_url = "https://example.com/payment_error_no_return_url_configured"
-            logging.warning(
-                f"CRITICAL: YOOKASSA_RETURN_URL not set AND bot username not provided. "
-                f"Using placeholder: {self.return_url}. Payments may not complete correctly."
-            )
+        self.default_return_url = (
+            f"https://t.me/{bot_username_for_default_return}"
+            if bot_username_for_default_return
+            else "https://example.com/payment_error_no_return_url_configured"
+        )
+        self._legacy_shop_id = shop_id
+        self._legacy_secret_key = secret_key
+        self._legacy_return_url = configured_return_url
+        self.refresh_from_settings()
         logging.info(
             f"YooKassa Service effective return_url for payments: {self.return_url}"
         )
+
+    def refresh_from_settings(self) -> None:
+        shop_id = self.settings.YOOKASSA_SHOP_ID if self.settings else self._legacy_shop_id
+        secret_key = self.settings.YOOKASSA_SECRET_KEY if self.settings else self._legacy_secret_key
+        enabled = self.settings.YOOKASSA_ENABLED if self.settings else True
+        self.return_url = (
+            (self.settings.YOOKASSA_RETURN_URL if self.settings else self._legacy_return_url)
+            or self.default_return_url
+        )
+        if not enabled or not shop_id or not secret_key:
+            self.configured = False
+            return
+        try:
+            Configuration.configure(shop_id, secret_key)
+            self.configured = True
+        except Exception as exc:
+            logging.error("Failed to configure YooKassa SDK: %s", exc, exc_info=True)
+            self.configured = False
 
     async def create_payment(
             self,

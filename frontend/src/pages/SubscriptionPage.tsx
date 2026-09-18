@@ -10,6 +10,7 @@ import { TariffSelector } from '@/components/subscription/TariffSelector'
 import { TariffOptionSelector } from '@/components/subscription/TariffOptionSelector'
 import { AddonSelector } from '@/components/subscription/AddonSelector'
 import { PaymentMethodGrid } from '@/components/payment/PaymentMethodGrid'
+import type { PublicPaymentProvider } from '@/components/payment/PaymentMethodGrid'
 import { PromoInput } from '@/components/payment/PromoInput'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,8 +37,10 @@ function useAvailableProviders() {
   return useQuery({
     queryKey: ['config'],
     queryFn: () =>
-      apiRequest<{ available_providers: string[] }>('/config').catch(() => ({
+      apiRequest<{ available_providers: string[]; payment_providers: PublicPaymentProvider[]; stars_enabled: boolean }>('/config').catch(() => ({
         available_providers: [],
+        payment_providers: [],
+        stars_enabled: false,
       })),
   })
 }
@@ -103,6 +106,8 @@ export function SubscriptionPage() {
 
   const { data: configData } = useAvailableProviders()
   const availableProviders = configData?.available_providers ?? []
+  const paymentProviders = configData?.payment_providers ?? availableProviders.map((key) => ({ key, display_name: key }))
+  const starsEnabled = configData?.stars_enabled ?? false
 
   const isCatalogMode = plans?.mode === 'catalog' && (plans.catalog_plans?.length ?? 0) > 0
 
@@ -154,11 +159,11 @@ export function SubscriptionPage() {
 
     if (standaloneActive && selectedOption) {
       rub = add(rub, renewalBundle?.has_bundle ? renewalBundle.total_price_rub : selectedOption.price_rub)
-      stars = add(stars, renewalBundle?.has_bundle ? renewalBundle.total_price_stars : selectedOption.price_stars)
+      if (starsEnabled) stars = add(stars, renewalBundle?.has_bundle ? renewalBundle.total_price_stars : selectedOption.price_stars)
     }
     if (addonActive && selectedAddonOption) {
       rub = add(rub, selectedAddonOption.prorated_price_rub ?? selectedAddonOption.price_rub)
-      stars = add(stars, selectedAddonOption.prorated_price_stars ?? selectedAddonOption.price_stars)
+      if (starsEnabled) stars = add(stars, selectedAddonOption.prorated_price_stars ?? selectedAddonOption.price_stars)
     }
 
     if (rub !== null && discountPct) rub = Math.round(rub * (1 - discountPct / 100))
@@ -419,6 +424,7 @@ export function SubscriptionPage() {
                 plans={plans!.catalog_plans}
                 selectedPlanId={null}
                 onSelect={handleSelectStandalonePlan}
+                showStars={starsEnabled}
               />
             ) : (
               /* Step 2: choose option */
@@ -428,6 +434,7 @@ export function SubscriptionPage() {
                 discountPercentage={discountPct}
                 onSelect={handleSelectStandaloneOption}
                 onBack={handleBackToPlans}
+                showStars={starsEnabled}
               />
             )}
 
@@ -438,6 +445,7 @@ export function SubscriptionPage() {
                 mode={addonMode}
                 selectedOptionId={selectedAddonOption?.id ?? null}
                 onSelect={handleSelectAddon}
+                showStars={starsEnabled}
               />
             )}
 
@@ -479,7 +487,7 @@ export function SubscriptionPage() {
                 <div className="px-5 py-4">
                   <p className="text-sm font-semibold mb-3">{t('sub_payment_method')}</p>
                   <PaymentMethodGrid
-                    availableProviders={availableProviders}
+                    providers={paymentProviders}
                     selectedProvider={selectedProvider}
                     onSelect={(p) => {
                       setSelectedProvider(p)
@@ -574,7 +582,7 @@ export function SubscriptionPage() {
                 <div className="px-5 py-4">
                   <p className="text-sm font-semibold mb-3">{t('sub_payment_method')}</p>
                   <PaymentMethodGrid
-                    availableProviders={availableProviders}
+                    providers={paymentProviders}
                     selectedProvider={selectedProvider}
                     onSelect={(p) => {
                       setSelectedProvider(p)

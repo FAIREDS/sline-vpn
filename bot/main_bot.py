@@ -41,6 +41,49 @@ from bot.utils.message_queue import init_queue_manager
 from bot.services.web_broadcast_service import WebBroadcastService
 
 
+_PAYMENT_CONFIG_REFRESH_SECONDS = 10
+
+
+async def _payment_provider_refresh_loop(dispatcher: Dispatcher) -> None:
+    """Keep bot provider clients in sync with changes made in the web admin."""
+    settings: Settings = dispatcher["settings"]
+    session_factory: sessionmaker = dispatcher["async_session_factory"]
+    service_keys = (
+        "yookassa_service",
+        "cryptopay_service",
+        "freekassa_service",
+        "platega_service",
+        "severpay_service",
+        "lavapay_service",
+    )
+    from core.services.payment_provider_settings import apply_provider_configs_to_settings
+
+    while True:
+        try:
+            async with session_factory() as session:
+                await apply_provider_configs_to_settings(session, settings)
+            for key in service_keys:
+                service = dispatcher.get(key)
+                refresh = getattr(service, "refresh_from_settings", None) if service else None
+                if callable(refresh):
+                    result = refresh()
+                    if asyncio.iscoroutine(result):
+                        await result
+            lknpd_service = dispatcher.get("lknpd_service")
+            if lknpd_service:
+                lknpd_service.refresh(
+                    settings.LKNPD_INN,
+                    settings.LKNPD_PASSWORD,
+                    settings.LKNPD_API_URL,
+                    enabled=settings.LKNPD_ENABLED,
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logging.error("Payment provider settings refresh failed: %s", exc, exc_info=True)
+        await asyncio.sleep(_PAYMENT_CONFIG_REFRESH_SECONDS)
+
+
 async def register_all_routers(dp: Dispatcher, settings: Settings):
     dp.include_router(build_root_router(settings))
     logging.info("All application routers registered.")
@@ -191,6 +234,13 @@ async def on_startup_configured(dispatcher: Dispatcher):
             exc_info=True,
         )
 
+    payment_provider_refresh_task = asyncio.create_task(
+        _payment_provider_refresh_loop(dispatcher),
+        name="payment-provider-settings-refresh",
+    )
+    dispatcher["payment_provider_refresh_task"] = payment_provider_refresh_task
+    logging.info("Payment provider settings refresh scheduled")
+
     # Automatic sync on startup
     try:
         logging.info("STARTUP: Running automatic panel sync...")
@@ -251,6 +301,14 @@ async def on_shutdown_configured(dispatcher: Dispatcher):
             await support_notify.stop()
         except Exception as e:
             logging.warning(f"Failed to stop support notify service: {e}")
+
+    payment_provider_refresh_task = dispatcher.get("payment_provider_refresh_task")
+    if payment_provider_refresh_task:
+        payment_provider_refresh_task.cancel()
+        try:
+            await payment_provider_refresh_task
+        except asyncio.CancelledError:
+            pass
 
     for service_key in (
         "panel_service",

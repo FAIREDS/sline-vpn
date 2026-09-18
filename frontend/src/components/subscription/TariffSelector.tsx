@@ -8,6 +8,7 @@ interface TariffSelectorProps {
   plans: PubPlan[]
   selectedPlanId: number | null
   onSelect: (plan: PubPlan) => void
+  showStars?: boolean
 }
 
 function getPlanName(plan: PubPlan, lang: string): string {
@@ -28,7 +29,7 @@ function getMinPrice(plan: PubPlan): { rub: number | null; stars: number | null 
   }
 }
 
-export function TariffSelector({ plans, selectedPlanId, onSelect }: TariffSelectorProps) {
+export function TariffSelector({ plans, selectedPlanId, onSelect, showStars = false }: TariffSelectorProps) {
   const { i18n, t } = useTranslation()
   const lang = i18n.language
 
@@ -93,13 +94,13 @@ export function TariffSelector({ plans, selectedPlanId, onSelect }: TariffSelect
                     )}>
                       {t('catalog_from_rub', { amount: rub })}
                     </p>
-                    {stars !== null && (
+                    {showStars && stars !== null && stars > 0 && (
                       <p className="text-xs text-[hsl(var(--muted-foreground))]">
                         {t('catalog_stars_price', { stars: Math.min(...plan.options.filter(o => o.price_stars !== null).map(o => o.price_stars!)) })}
                       </p>
                     )}
                   </>
-                ) : stars !== null ? (
+                ) : showStars && stars !== null && stars > 0 ? (
                   <p className="text-base font-extrabold">⭐ {stars}</p>
                 ) : null}
               </div>

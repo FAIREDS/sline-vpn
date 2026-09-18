@@ -52,12 +52,15 @@ class LavaPayService:
         self.default_return_url = f"https://t.me/{default_return_url}"
         self.client = LavaClient(settings)
 
-        self.configured: bool = is_configured(settings)
+        self.refresh_from_settings()
         if settings.LAVAPAY_ENABLED and not self.configured:
             logging.warning(
                 "LavaPayService: провайдер включён, но не настроен "
                 "(нужны LAVAPAY_SHOP_ID, LAVAPAY_SECRET_KEY, LAVAPAY_WEBHOOK_SECRET). Оплата отключена."
             )
+
+    def refresh_from_settings(self) -> None:
+        self.configured = is_configured(self.settings)
 
     @property
     def webhook_url(self) -> Optional[str]:

@@ -145,47 +145,50 @@ def get_subscription_options_keyboard(subscription_options: Dict[
 def get_payment_method_keyboard(months: Union[int, float, str], price: float,
                                 stars_price: Optional[int],
                                 currency_symbol_val: str, lang: str,
-                                i18n_instance, settings: Settings, sale_mode: str = "subscription") -> InlineKeyboardMarkup:
+                                i18n_instance, settings: Settings, sale_mode: str = "subscription",
+                                provider_options: Optional[list[tuple[str, str]]] = None) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     def _format_value(val: float) -> str:
         return str(int(val)) if float(val).is_integer() else f"{val:g}"
     value_str = months if isinstance(months, str) else _format_value(months)
     mode_suffix = f":{sale_mode}"
-    for method in settings.payment_methods_order:
+    configured_labels = dict(provider_options or [])
+    method_order = [item[0] for item in provider_options] if provider_options is not None else settings.payment_methods_order
+    for method in method_order:
         if method == "lavapay" and lava_is_configured(settings):
             builder.button(
-                text=_("pay_with_lavapay_button"),
+                text=configured_labels.get(method) or _("pay_with_lavapay_button"),
                 callback_data=f"pay_lavapay:{value_str}:{price}{mode_suffix}",
             )
         elif method == "severpay" and getattr(settings, "SEVERPAY_ENABLED", False):
             builder.button(
-                text=_("pay_with_severpay_button"),
+                text=configured_labels.get(method) or _("pay_with_severpay_button"),
                 callback_data=f"pay_severpay:{value_str}:{price}{mode_suffix}",
             )
         elif method == "freekassa" and settings.FREEKASSA_ENABLED:
             builder.button(
-                text=_("pay_with_sbp_button"),
+                text=configured_labels.get(method) or _("pay_with_sbp_button"),
                 callback_data=f"pay_fk:{value_str}:{price}{mode_suffix}",
             )
         elif method == "platega" and settings.PLATEGA_ENABLED:
             builder.button(
-                text=_("pay_with_platega_button"),
+                text=configured_labels.get(method) or _("pay_with_platega_button"),
                 callback_data=f"pay_platega:{value_str}:{price}{mode_suffix}",
             )
         elif method == "yookassa" and settings.YOOKASSA_ENABLED:
             builder.button(
-                text=_("pay_with_yookassa_button"),
+                text=configured_labels.get(method) or _("pay_with_yookassa_button"),
                 callback_data=f"pay_yk:{value_str}:{price}{mode_suffix}",
             )
         elif method == "stars" and settings.STARS_ENABLED and stars_price is not None:
             builder.button(
-                text=_("pay_with_stars_button"),
+                text=configured_labels.get(method) or _("pay_with_stars_button"),
                 callback_data=f"pay_stars:{value_str}:{stars_price}{mode_suffix}",
             )
         elif method == "cryptopay" and settings.CRYPTOPAY_ENABLED:
             builder.button(
-                text=_("pay_with_cryptopay_button"),
+                text=configured_labels.get(method) or _("pay_with_cryptopay_button"),
                 callback_data=f"pay_crypto:{value_str}:{price}{mode_suffix}",
             )
     builder.button(text=_(key="cancel_button"),
@@ -595,7 +598,7 @@ def _fmt_option_price(price_rub: Optional[float], price_stars: Optional[int]) ->
     parts = []
     if price_rub is not None:
         parts.append(f"{price_rub:g} ₽")
-    if price_stars is not None:
+    if price_stars is not None and price_stars > 0:
         parts.append(f"{price_stars} ⭐")
     return " | ".join(parts) if parts else "—"
 
@@ -608,6 +611,7 @@ def get_catalog_option_list_keyboard(
     *,
     prorated_prices: Optional[dict] = None,
     standalone_end_date_str: Optional[str] = None,
+    show_stars: bool = False,
 ) -> InlineKeyboardMarkup:
     """
     Keyboard with option buttons for a catalog plan.
@@ -632,6 +636,9 @@ def get_catalog_option_list_keyboard(
         else:
             p_rub = float(opt.price_rub) if opt.price_rub is not None else None
             p_stars = opt.price_stars
+
+        if not show_stars:
+            p_stars = None
 
         price_str = _fmt_option_price(p_rub, p_stars)
 

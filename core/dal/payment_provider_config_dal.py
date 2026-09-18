@@ -42,3 +42,14 @@ async def update_provider(db: AsyncSession, provider_id: int, **kwargs) -> Optio
     await db.flush()
     await db.refresh(provider)
     return provider
+
+
+async def reorder_providers(db: AsyncSession, provider_ids: List[int]) -> List[PaymentProviderConfig]:
+    providers = await get_all_providers(db)
+    by_id = {provider.id: provider for provider in providers}
+    if set(provider_ids) != set(by_id):
+        raise ValueError("Список провайдеров для сортировки неполный")
+    for index, provider_id in enumerate(provider_ids, start=1):
+        by_id[provider_id].sort_order = index
+    await db.flush()
+    return await get_all_providers(db)

@@ -37,6 +37,12 @@ async def main():
 
     await init_db(settings, session_factory)
 
+    # Payment providers are configured in the database. Hydrate the shared
+    # settings object before constructing provider clients.
+    from core.services.payment_provider_settings import apply_provider_configs_to_settings
+    async with session_factory() as session:
+        await apply_provider_configs_to_settings(session, settings)
+
     await run_bot(settings)
 
 

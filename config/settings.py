@@ -78,6 +78,7 @@ class Settings(BaseSettings):
         alias="NALOGO_INN",
         description="INN for lknpd.nalog.ru (self-employed) authentication"
     )
+    LKNPD_ENABLED: bool = Field(default=False)
     LKNPD_PASSWORD: Optional[str] = Field(
         default=None,
         alias="NALOGO_PASSWORD",
@@ -113,7 +114,7 @@ class Settings(BaseSettings):
     CRYPTOPAY_NETWORK: str = Field(default="mainnet")
     CRYPTOPAY_CURRENCY_TYPE: str = Field(default="fiat")
     CRYPTOPAY_ASSET: str = Field(default="RUB")
-    CRYPTOPAY_ENABLED: bool = Field(default=True)
+    CRYPTOPAY_ENABLED: bool = Field(default=False)
     PLATEGA_ENABLED: bool = Field(default=False)
     PLATEGA_BASE_URL: str = Field(default="https://app.platega.io")
     PLATEGA_MERCHANT_ID: Optional[str] = None
@@ -155,8 +156,8 @@ class Settings(BaseSettings):
     LAVAPAY_FAIL_URL: Optional[str] = Field(default=None, description="Куда вернуть после неуспешной оплаты (без query-параметров)")
     LAVAPAY_EXPIRE_MINUTES: Optional[int] = Field(default=None, description="Срок жизни счёта в минутах (1..7200)")
 
-    YOOKASSA_ENABLED: bool = Field(default=True)
-    STARS_ENABLED: bool = Field(default=True)
+    YOOKASSA_ENABLED: bool = Field(default=False)
+    STARS_ENABLED: bool = Field(default=False)
     STARS_PROVIDER_TOKEN: Optional[str] = Field(
         default="",
         description="Provider token for Telegram invoices. For Stars (XTR) should stay empty.",
@@ -814,51 +815,6 @@ def get_settings() -> Settings:
                     "WARNING: TELEGRAM_WEBHOOK_SECRET is empty while webhook mode is enabled. "
                     "Set TELEGRAM_WEBHOOK_SECRET to validate X-Telegram-Bot-Api-Secret-Token header."
                 )
-            if not _settings_instance.YOOKASSA_SHOP_ID or not _settings_instance.YOOKASSA_SECRET_KEY:
-                logging.warning(
-                    "CRITICAL: YooKassa credentials (SHOP_ID or SECRET_KEY) are not set. Payments will not work."
-                )
-            if (
-                _settings_instance.LKNPD_INN
-                or _settings_instance.LKNPD_PASSWORD
-            ) and not (
-                _settings_instance.LKNPD_INN
-                and _settings_instance.LKNPD_PASSWORD
-            ):
-                logging.warning(
-                    "WARNING: LKNPD credentials are incomplete. Receipt sending will be disabled."
-                )
-            if _settings_instance.FREEKASSA_ENABLED:
-                if (
-                    not _settings_instance.FREEKASSA_MERCHANT_ID
-                    or not _settings_instance.FREEKASSA_API_KEY
-                ):
-                    logging.warning(
-                        "CRITICAL: FreeKassa is enabled but SHOP_ID or API key is missing. FreeKassa payments will not work."
-                    )
-                if not _settings_instance.FREEKASSA_SECOND_SECRET:
-                    logging.warning(
-                        "WARNING: FreeKassa second secret is not set. Incoming payment notifications cannot be verified."
-                    )
-                if not _settings_instance.subscription_options:
-                    logging.warning(
-                        "CRITICAL: FreeKassa is enabled but no subscription prices are configured (RUB_PRICE_*). Users will not see payment buttons."
-                    )
-
-            if _settings_instance.PLATEGA_ENABLED:
-                if (
-                    not _settings_instance.PLATEGA_MERCHANT_ID
-                    or not _settings_instance.PLATEGA_SECRET
-                ):
-                    logging.warning(
-                        "CRITICAL: Platega is enabled but merchant credentials (PLATEGA_MERCHANT_ID/PLATEGA_SECRET) are missing. Platega payments will not work."
-                    )
-            if _settings_instance.SEVERPAY_ENABLED:
-                if not _settings_instance.SEVERPAY_MID or not _settings_instance.SEVERPAY_TOKEN:
-                    logging.warning(
-                        "CRITICAL: SeverPay is enabled but MID or TOKEN is missing. SeverPay payments will not work."
-                    )
-
         except ValidationError as e:
             logging.critical(
                 f"Pydantic validation error while loading settings: {e}")

@@ -257,6 +257,10 @@ async def select_subscription_period_callback_handler(
     if discount_text:
         text_content = f"{discount_text}\n\n{text_content}"
 
+    from core.services.payment_provider_settings import public_provider_options
+    provider_rows = await public_provider_options(session, settings, web_only=False)
+    provider_options = [(item["key"], item["display_name"]) for item in provider_rows]
+
     reply_markup = get_payment_method_keyboard(
         months,
         price_rub,
@@ -266,6 +270,7 @@ async def select_subscription_period_callback_handler(
         i18n,
         settings,
         sale_mode="traffic" if traffic_mode else "subscription",
+        provider_options=provider_options,
     )
 
     try:

@@ -48,6 +48,16 @@ def get_settings_dep() -> Settings:
     return get_settings()
 
 
+async def get_payment_settings_dep(
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+) -> Settings:
+    """Settings copy hydrated from the database-backed payment configuration."""
+    from core.services.payment_provider_settings import runtime_settings
+
+    return await runtime_settings(db, settings)
+
+
 def get_redis(request: Request) -> Redis:
     return request.app.state.redis
 

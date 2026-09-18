@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from config.settings import Settings, get_settings
+from config.settings import Settings
 from db.models import Account, Payment
-from web.dependencies import get_current_account, get_db
+from web.dependencies import get_current_account, get_db, get_payment_settings_dep
 from web.schemas.payment import (
     PaymentResponse,
     PaymentsListResponse,
@@ -93,7 +93,7 @@ async def create_payment(
     body: CreatePaymentRequest,
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> CreatePaymentResponse:
     from core.services.payment_core import create_web_payment
 

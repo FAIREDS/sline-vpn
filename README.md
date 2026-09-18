@@ -23,7 +23,7 @@
 - Промокоды (скидка / бонусные дни / бесплатный период)
 - Реферальная программа с бонусными днями
 - Оплата через YooKassa, LavaPay, FreeKassa, CryptoPay, Platega, SeverPay, Telegram Stars
-- Чеки 54-ФЗ: YooKassa (`YOOKASSA_TAX_SYSTEM_CODE`) и самозанятость через nalog.ru (`NALOGO_*`)
+- Чеки 54-ФЗ: YooKassa и самозанятость через nalog.ru, с настройкой в веб-админке
 - Автопродление подписки (bundle: standalone + addon с включённым автопродлением)
 - Уведомления об истечении подписки
 
@@ -570,61 +570,26 @@ Resend отправляет коды подтверждения при реги�
 <details>
 <summary><b>Платёжные системы</b></summary>
 
-| Переменная | Описание |
-|-----------|---------|
-| `PAYMENT_METHODS_ORDER` | Порядок кнопок оплаты (через запятую): `lavapay,severpay,yookassa,cryptopay,freekassa,platega,stars` |
-| `YOOKASSA_ENABLED` | Включить YooKassa |
-| `YOOKASSA_SHOP_ID` / `YOOKASSA_SECRET_KEY` | Данные магазина YooKassa |
-| `YOOKASSA_AUTOPAYMENTS_ENABLED` | Автопродление через YooKassa |
-| `YOOKASSA_TAX_SYSTEM_CODE` | Код СНО для чеков (1–6) |
-| `FREEKASSA_ENABLED` | Включить FreeKassa |
-| `FREEKASSA_MERCHANT_ID` / `FREEKASSA_API_KEY` / `FREEKASSA_SECOND_SECRET` | Данные магазина FreeKassa |
-| `CRYPTOPAY_ENABLED` | Включить CryptoPay |
-| `CRYPTOPAY_TOKEN` | API-токен CryptoPay |
-| `PLATEGA_ENABLED` | Включить Platega |
-| `PLATEGA_MERCHANT_ID` / `PLATEGA_SECRET` | Данные магазина Platega |
-| `SEVERPAY_ENABLED` | Включить SeverPay |
-| `SEVERPAY_MID` / `SEVERPAY_TOKEN` | Данные магазина SeverPay |
-| `LAVAPAY_ENABLED` | Включить LavaPay (Lava Business) |
-| `LAVAPAY_SHOP_ID` / `LAVAPAY_SECRET_KEY` | shopId и секретный ключ магазина Lava (подпись запросов) |
-| `LAVAPAY_WEBHOOK_SECRET` | «Дополнительный ключ» магазина — подпись вебхуков. **Обязателен**: без него провайдер не активируется и уведомления об оплате отклоняются |
-| `LAVAPAY_RETURN_URL` / `LAVAPAY_FAIL_URL` | Куда вернуть после оплаты. Ссылки **без query-параметров** — Lava отвечает 422 |
-| `LAVAPAY_EXPIRE_MINUTES` | Срок жизни счёта в минутах (1–7200) |
-| `STARS_ENABLED` | Включить Telegram Stars |
-| `NALOGO_INN` / `NALOGO_PASSWORD` | Самозанятый: интеграция с nalog.ru |
+Все платёжные настройки находятся в **Админка → Провайдеры оплат**:
+
+- включение и выключение провайдера;
+- название кнопки для пользователя;
+- порядок способов оплаты;
+- ключи, токены, URL и дополнительные параметры;
+- YooKassa: чеки и автопродление;
+- nalog.ru: чеки самозанятого.
+
+Секреты хранятся в БД в зашифрованном виде. Ключ шифрования выводится из
+обязательного `WEB_JWT_SECRET`. При первом обновлении старые платёжные значения
+однократно импортируются из `.env`; после успешного запуска их следует удалить.
 
 </details>
 
 <details>
-<summary><b>Тарифные планы (DEPRECATED — legacy bootstrap)</b></summary>
+<summary><b>Тарифные планы</b></summary>
 
-> ⚠️ **Deprecated.** С появлением Custom Tariffs тарифы хранятся в БД и
-> управляются через админку. Эти поля используются **только** при первом старте
-> на пустой БД — для bootstrap тарифа `legacy-default`. После bootstrap правьте
-> тарифы в web/bot admin, а не здесь. См. раздел [Custom Tariffs](#-custom-tariffs-кастомные-тарифы).
-
-```env
-1_MONTH_ENABLED=true
-RUB_PRICE_1_MONTH=150
-STARS_PRICE_1_MONTH=0
-
-3_MONTHS_ENABLED=true
-RUB_PRICE_3_MONTHS=300
-
-6_MONTHS_ENABLED=true
-RUB_PRICE_6_MONTHS=500
-
-12_MONTHS_ENABLED=true
-RUB_PRICE_12_MONTHS=900
-
-# Пакеты трафика (legacy, опционально)
-TRAFFIC_PACKAGES=10:199,50:799
-
-# Нижняя граница пропорциональной цены addon (глобальный fallback;
-# переопределяется min_price на уровне тарифа)
-MIN_PRORATED_PRICE_RUB=
-MIN_PRORATED_PRICE_STARS=
-```
+Тарифы, варианты, цены в рублях и Telegram Stars настраиваются в
+**Админка → Тарифы**. В `.env` цены не дублируются.
 
 </details>
 
@@ -897,7 +862,7 @@ BUILD_GEN_DOC=1 npx rspack build --mode development && node dist/gen-doc.js
 | `/webhook/cryptopay` | CryptoPay |
 | `/webhook/platega` | Platega |
 | `/webhook/severpay` | SeverPay |
-| `/webhook/lavapay` | LavaPay (регистрируется только при заданном `LAVAPAY_WEBHOOK_SECRET`) |
+| `/webhook/lavapay` | LavaPay (до полной настройки возвращает 503) |
 | `/webhook/panel` | Remnawave Panel |
 
 ---

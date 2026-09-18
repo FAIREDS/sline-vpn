@@ -36,26 +36,27 @@ class PlategaService:
         self.async_session_factory = async_session_factory
         self.subscription_service = subscription_service
         self.referral_service = referral_service
-
-        self.base_url = (settings.PLATEGA_BASE_URL or "https://app.platega.io").rstrip("/")
-        self.merchant_id = settings.PLATEGA_MERCHANT_ID
-        self.secret = settings.PLATEGA_SECRET
-        self.payment_method = settings.PLATEGA_PAYMENT_METHOD
-        self.return_url = settings.PLATEGA_RETURN_URL or f"https://t.me/{default_return_url}"
-        self.failed_url = settings.PLATEGA_FAILED_URL or self.return_url
+        self.default_return_url = f"https://t.me/{default_return_url}"
 
         self._timeout = ClientTimeout(total=20)
         self._session: Optional[ClientSession] = None
+        self.refresh_from_settings()
+        if not self.configured:
+            logging.warning("PlategaService initialized but not fully configured. Payments disabled.")
+
+    def refresh_from_settings(self) -> None:
+        self.base_url = (self.settings.PLATEGA_BASE_URL or "https://app.platega.io").rstrip("/")
+        self.merchant_id = self.settings.PLATEGA_MERCHANT_ID
+        self.secret = self.settings.PLATEGA_SECRET
+        self.payment_method = self.settings.PLATEGA_PAYMENT_METHOD
+        self.return_url = self.settings.PLATEGA_RETURN_URL or self.default_return_url
+        self.failed_url = self.settings.PLATEGA_FAILED_URL or self.return_url
         self._auth_headers = {
             "X-MerchantId": self.merchant_id or "",
             "X-Secret": self.secret or "",
             "Content-Type": "application/json",
         }
-        self.configured: bool = bool(
-            settings.PLATEGA_ENABLED and self.merchant_id and self.secret
-        )
-        if not self.configured:
-            logging.warning("PlategaService initialized but not fully configured. Payments disabled.")
+        self.configured = bool(self.settings.PLATEGA_ENABLED and self.merchant_id and self.secret)
 
     async def _get_session(self) -> ClientSession:
         if self._session is None or self._session.closed:

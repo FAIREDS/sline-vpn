@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from config.settings import Settings, get_settings
+from config.settings import Settings
+from web.dependencies import get_payment_settings_dep
 from db.models import Account
 from web.dependencies import get_current_account, get_db, get_redis
 from core.dal.account_dal import get_account_user_ids
@@ -211,7 +212,7 @@ def _entitlement_to_response(e) -> EntitlementResponse:
 async def get_subscription(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> SubscriptionResponse:
     if not get_account_user_ids(account):
         raise HTTPException(status_code=404, detail="No subscription found")
@@ -261,7 +262,7 @@ async def get_subscription(
 async def get_trial_eligibility(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> TrialEligibilityResponse:
     from core.services.trial_core import check_trial_eligibility
 
@@ -279,7 +280,7 @@ async def activate_trial(
     request: Request,
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
     redis=Depends(get_redis),
 ) -> SubscriptionResponse:
     from core.services.trial_core import activate_trial_for_account
@@ -364,7 +365,7 @@ async def _get_optional_account(request: Request, db: AsyncSession, settings: Se
 async def get_plans(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> SubscriptionPlansResponse:
     if settings.traffic_sale_mode:
         plans = [
@@ -410,7 +411,7 @@ async def get_plans(
                 billing_model=p.billing_model,
                 traffic_reset_strategy=p.traffic_reset_strategy,
                 min_price_rub=p.min_price_rub,
-                min_price_stars=p.min_price_stars,
+                min_price_stars=p.min_price_stars if settings.STARS_ENABLED else None,
                 is_trial=p.is_trial,
                 options=[
                     PubPlanOptionResponse(
@@ -420,7 +421,7 @@ async def get_plans(
                         traffic_gb=opt.traffic_gb,
                         traffic_unlimited=opt.traffic_unlimited,
                         price_rub=opt.price_rub,
-                        price_stars=opt.price_stars,
+                        price_stars=opt.price_stars if settings.STARS_ENABLED else None,
                         sort_order=opt.sort_order,
                     )
                     for opt in p.options
@@ -443,7 +444,7 @@ async def get_plans(
 async def get_entitlements(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> EntitlementsResponse:
     from core.dal.plan_entitlement_dal import get_active_entitlements_for_user
 
@@ -480,7 +481,7 @@ async def toggle_entitlement_auto_renew(
     body: AutoRenewEntitlementRequest,
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> EntitlementResponse:
     from core.dal.plan_entitlement_dal import get_entitlement_by_id
 
@@ -508,6 +509,7 @@ async def get_renewal_bundle(
     option_id: int,
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> RenewalBundleResponse:
     from core.dal.pricing_plan_dal import get_plan_option_by_id
     from core.services.tariff_renewal_bundle import build_standalone_renewal_bundle
@@ -533,14 +535,14 @@ async def get_renewal_bundle(
             return RenewalBundleResponse(
                 has_bundle=True,
                 total_price_rub=bundle["total_price_rub"],
-                total_price_stars=bundle["total_price_stars"],
+                total_price_stars=bundle["total_price_stars"] if settings.STARS_ENABLED else None,
                 addons=[
                     RenewalBundleAddonResponse(
                         entitlement_id=item["entitlement_id"],
                         plan_id=item["plan_id"],
                         option_id=item["option_id"],
                         price_rub=item.get("price_rub"),
-                        price_stars=item.get("price_stars"),
+                        price_stars=item.get("price_stars") if settings.STARS_ENABLED else None,
                     )
                     for item in snapshot.get("addons", [])
                 ],
@@ -553,7 +555,7 @@ async def get_renewal_bundle(
 async def get_addons(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> AddonsListResponse:
     from core.dal.plan_entitlement_dal import get_active_standalone_entitlement
     from core.dal.pricing_plan_dal import get_plans as dal_get_plans
@@ -588,7 +590,7 @@ async def get_addons(
         for opt in enabled_options:
             prorated_rub, prorated_stars = prorate_option(
                 price_rub=opt.price_rub,
-                price_stars=opt.price_stars,
+                price_stars=opt.price_stars if settings.STARS_ENABLED else None,
                 duration_months=opt.duration_months,
                 duration_days=opt.duration_days,
                 plan_min_price_rub=plan.min_price_rub,
@@ -605,10 +607,10 @@ async def get_addons(
                 traffic_gb=opt.traffic_gb,
                 traffic_unlimited=opt.traffic_unlimited,
                 price_rub=opt.price_rub,
-                price_stars=opt.price_stars,
+                price_stars=opt.price_stars if settings.STARS_ENABLED else None,
                 sort_order=opt.sort_order,
                 prorated_price_rub=prorated_rub,
-                prorated_price_stars=prorated_stars,
+                prorated_price_stars=prorated_stars if settings.STARS_ENABLED else None,
             ))
 
         result.append(AddonPlanResponse(
@@ -621,7 +623,7 @@ async def get_addons(
             billing_model=plan.billing_model,
             traffic_reset_strategy=plan.traffic_reset_strategy,
             min_price_rub=plan.min_price_rub,
-            min_price_stars=plan.min_price_stars,
+            min_price_stars=plan.min_price_stars if settings.STARS_ENABLED else None,
             is_trial=plan.is_trial,
             options=priced_options,
         ))
@@ -632,6 +634,7 @@ async def get_addons(
 @router.get("/addons/catalog", response_model=AddonsListResponse)
 async def get_addons_catalog(
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> AddonsListResponse:
     """List purchasable addon plans at FULL price (no proration, no active-standalone
     requirement). Used for the combined "standalone + addon" purchase flow, where the
@@ -660,10 +663,10 @@ async def get_addons_catalog(
                 traffic_gb=opt.traffic_gb,
                 traffic_unlimited=opt.traffic_unlimited,
                 price_rub=opt.price_rub,
-                price_stars=opt.price_stars,
+                price_stars=opt.price_stars if settings.STARS_ENABLED else None,
                 sort_order=opt.sort_order,
                 prorated_price_rub=opt.price_rub,
-                prorated_price_stars=opt.price_stars,
+                prorated_price_stars=opt.price_stars if settings.STARS_ENABLED else None,
             )
             for opt in enabled_options
         ]
@@ -678,7 +681,7 @@ async def get_addons_catalog(
             billing_model=plan.billing_model,
             traffic_reset_strategy=plan.traffic_reset_strategy,
             min_price_rub=plan.min_price_rub,
-            min_price_stars=plan.min_price_stars,
+            min_price_stars=plan.min_price_stars if settings.STARS_ENABLED else None,
             is_trial=plan.is_trial,
             options=priced_options,
         ))
@@ -690,7 +693,7 @@ async def get_addons_catalog(
 async def get_connection(
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> ConnectionResponse:
     if not get_account_user_ids(account):
         raise HTTPException(status_code=404, detail="No subscription found")
@@ -731,7 +734,7 @@ async def toggle_auto_renew(
     body: AutoRenewRequest,
     account: Account = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_payment_settings_dep),
 ) -> AutoRenewResponse:
     if not get_account_user_ids(account):
         raise HTTPException(status_code=404, detail="No subscription found")

@@ -59,15 +59,11 @@ def get_available_providers(settings: Settings) -> List[str]:
 
 
 async def get_available_providers_db(db: AsyncSession, settings: Settings) -> List[str]:
-    """Return enabled providers in DB order. Falls back to env vars if DB has no enabled entries."""
-    from core.dal.payment_provider_config_dal import get_enabled_providers
-    db_providers = await get_enabled_providers(db)
-    if db_providers:
-        # Filter by credentials still present in env vars (DB enables only if credentials exist)
-        env_available = set(get_available_providers(settings))
-        return [p.provider_key for p in db_providers if p.provider_key in env_available]
-    # Legacy: fall back to env vars order
-    return get_available_providers(settings)
+    """Return enabled and fully configured web providers in database order."""
+    from core.services.payment_provider_settings import public_provider_options
+
+    options = await public_provider_options(db, settings, web_only=True)
+    return [item["key"] for item in options]
 
 
 async def get_plan_price_db(db: AsyncSession, settings: Settings, months: int) -> Optional[float]:

@@ -250,6 +250,7 @@ async def select_tariff_callback(
         i18n,
         prorated_prices=prorated_prices,
         standalone_end_date_str=standalone_end_date_str,
+        show_stars=settings.STARS_ENABLED,
     )
 
     try:
@@ -356,6 +357,10 @@ async def subscribe_option_callback(
     # Encode catalog option in callback value as "o{option_id}"
     catalog_value = f"o{option_id}"
 
+    from core.services.payment_provider_settings import public_provider_options
+    provider_rows = await public_provider_options(session, settings, web_only=False)
+    provider_options = [(item["key"], item["display_name"]) for item in provider_rows]
+
     markup = get_payment_method_keyboard(
         catalog_value,
         display_price,
@@ -365,6 +370,7 @@ async def subscribe_option_callback(
         i18n,
         settings,
         sale_mode=plan_kind,
+        provider_options=provider_options,
     )
 
     text = get_text("choose_payment_method")

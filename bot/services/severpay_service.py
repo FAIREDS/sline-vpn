@@ -39,19 +39,22 @@ class SeverPayService:
         self.async_session_factory = async_session_factory
         self.subscription_service = subscription_service
         self.referral_service = referral_service
-
-        self.base_url = (settings.SEVERPAY_BASE_URL or "https://severpay.io/api/merchant").rstrip("/")
-        self.mid = settings.SEVERPAY_MID
-        self.token = settings.SEVERPAY_TOKEN or ""
-        self.return_url = settings.SEVERPAY_RETURN_URL or f"https://t.me/{default_return_url}"
-        self.lifetime_minutes = settings.SEVERPAY_LIFETIME_MINUTES
+        self.default_return_url = f"https://t.me/{default_return_url}"
 
         self._timeout = ClientTimeout(total=15)
         self._session: Optional[ClientSession] = None
 
-        self.configured: bool = bool(settings.SEVERPAY_ENABLED and self.mid and self.token)
+        self.refresh_from_settings()
         if not self.configured:
             logging.warning("SeverPayService initialized but not fully configured. Payments disabled.")
+
+    def refresh_from_settings(self) -> None:
+        self.base_url = (self.settings.SEVERPAY_BASE_URL or "https://severpay.io/api/merchant").rstrip("/")
+        self.mid = self.settings.SEVERPAY_MID
+        self.token = self.settings.SEVERPAY_TOKEN or ""
+        self.return_url = self.settings.SEVERPAY_RETURN_URL or self.default_return_url
+        self.lifetime_minutes = self.settings.SEVERPAY_LIFETIME_MINUTES
+        self.configured = bool(self.settings.SEVERPAY_ENABLED and self.mid and self.token)
 
     async def _get_session(self) -> ClientSession:
         if self._session is None or self._session.closed:

@@ -12,6 +12,7 @@ interface AddonSelectorProps {
   //           period aligned to the standalone (uses /subscription/addons/catalog).
   // 'topup':  added to an already-active subscription — prorated (uses /subscription/addons).
   mode?: 'bundle' | 'topup'
+  showStars?: boolean
 }
 
 function formatDuration(option: AddonPlanOption, isRu: boolean): string {
@@ -30,7 +31,7 @@ function formatDuration(option: AddonPlanOption, isRu: boolean): string {
   return ''
 }
 
-export function AddonSelector({ selectedOptionId, onSelect, mode = 'topup' }: AddonSelectorProps) {
+export function AddonSelector({ selectedOptionId, onSelect, mode = 'topup', showStars = false }: AddonSelectorProps) {
   const { i18n, t } = useTranslation()
   const isRu = i18n.language === 'ru'
   const lang = i18n.language
@@ -126,7 +127,7 @@ export function AddonSelector({ selectedOptionId, onSelect, mode = 'topup' }: Ad
                           {Math.round(rub)} ₽
                         </p>
                       )}
-                      {stars != null && (
+                      {showStars && stars != null && stars > 0 && (
                         <p className="text-xs text-[hsl(var(--muted-foreground))]">⭐ {stars}</p>
                       )}
                       {mode === 'topup' && (

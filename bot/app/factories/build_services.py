@@ -88,6 +88,7 @@ def build_core_services(
         settings.LKNPD_INN,
         settings.LKNPD_PASSWORD,
         api_url=settings.LKNPD_API_URL,
+        enabled=settings.LKNPD_ENABLED,
     )
 
     # Wire services that depend on each other

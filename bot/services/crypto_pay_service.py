@@ -38,15 +38,37 @@ class CryptoPayService:
         self.async_session_factory = async_session_factory
         self.subscription_service = subscription_service
         self.referral_service = referral_service
-        if token:
-            net = Networks.TEST_NET if str(network).lower() == "testnet" else Networks.MAIN_NET
+        self.client = None
+        self.configured = False
+        self._token = ""
+        self._network = ""
+        self._configure_client(token, network)
+
+    def _configure_client(self, token: Optional[str], network: str) -> None:
+        self._token = token or ""
+        self._network = str(network or "mainnet").lower()
+        if token and self.settings.CRYPTOPAY_ENABLED:
+            net = Networks.TEST_NET if self._network == "testnet" else Networks.MAIN_NET
             self.client = AioCryptoPay(token=token, network=net)
             self.client.register_pay_handler(self._invoice_paid_handler)
             self.configured = True
         else:
-            logging.warning("CryptoPay token not provided. CryptoPay disabled")
             self.client = None
             self.configured = False
+
+    async def refresh_from_settings(self) -> None:
+        token = self.settings.CRYPTOPAY_TOKEN or ""
+        network = str(self.settings.CRYPTOPAY_NETWORK or "mainnet").lower()
+        should_configure = bool(self.settings.CRYPTOPAY_ENABLED and token)
+        if token == self._token and network == self._network and should_configure == self.configured:
+            return
+        old_client = self.client
+        self._configure_client(token, network)
+        if old_client is not None:
+            try:
+                await old_client.close()
+            except Exception as exc:
+                logging.warning("Failed to close previous CryptoPay client: %s", exc)
 
     async def close(self):
         """Close underlying AioCryptoPay session if initialized."""

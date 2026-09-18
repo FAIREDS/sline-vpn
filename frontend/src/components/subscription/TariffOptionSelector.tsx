@@ -10,6 +10,7 @@ interface TariffOptionSelectorProps {
   discountPercentage?: number
   onSelect: (option: PubPlanOption) => void
   onBack: () => void
+  showStars?: boolean
 }
 
 function formatDuration(option: PubPlanOption, isRu: boolean): string {
@@ -41,6 +42,7 @@ export function TariffOptionSelector({
   discountPercentage,
   onSelect,
   onBack,
+  showStars = false,
 }: TariffOptionSelectorProps) {
   const { i18n, t } = useTranslation()
   const isRu = i18n.language === 'ru'
@@ -111,7 +113,7 @@ export function TariffOptionSelector({
                   </div>
                 ) : null}
 
-                {option.price_stars != null && (
+                {showStars && option.price_stars != null && option.price_stars > 0 && (
                   <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
                     {t('catalog_stars_price', { stars: option.price_stars })}
                   </p>

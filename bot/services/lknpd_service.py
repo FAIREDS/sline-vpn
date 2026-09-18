@@ -12,15 +12,36 @@ class LknpdService:
         inn: Optional[str],
         password: Optional[str],
         api_url: str = "https://lknpd.nalog.ru/api",
+        enabled: bool = True,
     ) -> None:
-        self.inn = inn.strip() if inn else None
-        self.password = password
-        self.configured = bool(self.inn and self.password)
-        self._client = LknpdClient(base_url=api_url) if self.configured else None
         self._auth_lock = asyncio.Lock()
+        self.refresh(inn, password, api_url, enabled=enabled)
 
         if not self.configured:
             logging.warning("LKNPD credentials are missing. Receipt sending disabled.")
+
+    def refresh(
+        self,
+        inn: Optional[str],
+        password: Optional[str],
+        api_url: str,
+        *,
+        enabled: bool,
+    ) -> None:
+        next_inn = inn.strip() if inn else None
+        next_configured = bool(enabled and next_inn and password)
+        changed = (
+            next_inn != getattr(self, "inn", None)
+            or password != getattr(self, "password", None)
+            or api_url != getattr(self, "api_url", None)
+            or next_configured != getattr(self, "configured", False)
+        )
+        self.inn = next_inn
+        self.password = password
+        self.api_url = api_url
+        self.configured = next_configured
+        if changed:
+            self._client = LknpdClient(base_url=api_url) if self.configured else None
 
     async def _ensure_authenticated(self) -> bool:
         if not self._client:
