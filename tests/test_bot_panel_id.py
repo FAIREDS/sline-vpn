@@ -1,4 +1,6 @@
 import inspect
+from types import NoneType
+from typing import get_args, get_type_hints
 
 import bot.handlers.admin.sync_admin as sync_admin
 import bot.handlers.admin.user_management as user_management
@@ -31,7 +33,8 @@ def test_no_bot_module_calls_removed_panel_methods():
 
 
 def test_link_details_helper_returns_numeric_id():
-    hint = inspect.signature(
-        subscription_service.SubscriptionService._get_or_create_panel_user_link_details
-    ).return_annotation
-    assert "Optional[int]" in str(hint)
+    method = subscription_service.SubscriptionService._get_or_create_panel_user_link_details
+    hint = get_type_hints(method)["return"]
+    link_details = get_args(hint)
+    numeric_id = link_details[0]
+    assert set(get_args(numeric_id)) == {int, NoneType}
